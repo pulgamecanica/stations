@@ -3,13 +3,27 @@ require "luhnacy"
 require "set"
 require "stringex"
 require "tzinfo"
+require "optparse"  # Required for parsing command-line options
 require_relative "lib/constants"
 
 # This script generates a text file "data.txt" for my program cpp_on_rails
 
+# Get command-line arguments for filtering
+filter_countries = ARGV.empty? ? nil : ARGV.map(&:upcase) # Convert to uppercase
+
+# Command-line option parsing
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: stations_for_cpp_on_rails.rb [options] [countries]"
+  
+  opts.on("-n", "--normalize", "Normalize the positions") do
+    options[:normalize] = true
+  end
+end.parse!
+
 puts "Starting data scraping!"
 
-SCALING_FACTOR = 100  # Adjust this value as needed, big factors separate more the nodes
+SCALING_FACTOR = 6  # Adjust this value as needed, big factors separate more the nodes
 OUT_NODES_POSITIONS = "positions.txt"
 OUT_NODES = "nodes.txt"
 STATIONS = CSV.read("stations.csv", **Constants::CSV_PARAMETERS)
@@ -32,22 +46,48 @@ def format_node_name(name)
   name.strip.gsub(/\s+/, '_') # Replace spaces with underscores
 end
 
+# Generate [x, y] coords from latitude and longitude
+def lat_long_to_xy(latitude, longitude, reference_lat, reference_long)
+  # Convert latitude and longitude from degrees to radians
+  lat_rad = latitude * Math::PI / 180
+  long_rad = longitude * Math::PI / 180
+  ref_lat_rad = reference_lat * Math::PI / 180
+  ref_long_rad = reference_long * Math::PI / 180
+  
+  # Earth's radius in kilometers (average)
+  earth_radius = 6371.0
+  
+  # Calculate differences in radians
+  delta_lat = lat_rad - ref_lat_rad
+  delta_long = long_rad - ref_long_rad
+  
+  # Calculate x and y coordinates in kilometers
+  x = delta_long * earth_radius * Math.cos(ref_lat_rad)
+  y = delta_lat * earth_radius
+  
+  return [x, y]
+end
+
+# Reference point (e.g., center of the graph)
+reference_lat = 0.0   # Equator
+reference_long = 0.0   # Prime Meridian
+
 # Sort the CSV rows by country before populating the hash
 STATIONS.sort_by { |row| row["country"] }.each_with_index do |row, index|
-  # Update progress bar
   progress_bar(index + 1, TOTAL_STATIONS, "Processing Stations")
+  country = row["country"].upcase # Normalize to uppercase for comparison
+  next if filter_countries && !filter_countries.include?(country) # Skip if not in filter
   # Only add station to the hash if it's not already present (ensure uniqueness)
   node_name = format_node_name(row["name"])  # Format the node name
   unless stations_unique.key?(node_name)
-    latitude = row["latitude"].to_f * SCALING_FACTOR  # Scale latitude
-    longitude = row["longitude"].to_f * SCALING_FACTOR  # Scale longitude
-    country = row["country"]    
-    stations_unique[node_name] = { country: country, latitude: latitude, longitude: longitude }
+    x, y = lat_long_to_xy(row["latitude"].to_f, row["longitude"].to_f, reference_lat, reference_long)
+    x *= SCALING_FACTOR  # Scale x
+    y *= SCALING_FACTOR  # Scale y
+    stations_unique[node_name] = { country: country, x: x, y: y }
     # Increment the station count for the country only for unique stations
     country_count[country] += 1
   end
 end
-
 
 # Writing to files with a progress bar
 puts
@@ -64,10 +104,32 @@ end
 # Writing to files with a progress bar
 puts
 
+# Normalize positions if the option is selected
+if options[:normalize]
+  # Filter positions to exclude (0, 0) nodes
+  valid_positions = stations_unique.values.reject { |station| station[:x] == 0 || station[:y] == 0 }
+
+  # Get minimum x and y from valid positions
+  min_x = valid_positions.map { |station| station[:x] }.min
+  min_y = valid_positions.map { |station| station[:y] }.min
+
+  puts "Normalized min values: [#{min_x}, #{min_y}]"
+
+  stations_unique.each_with_index do |(name, station), index|
+    progress_bar(index + 1, TOTAL_UNIQUE_STATIONS, "Normalizing Nodes Positions")
+    station[:x] -= min_x
+    station[:y] = -station[:y]
+    station[:y] += min_y
+  end
+end
+
+# Writing to files with a progress bar
+puts
+
 File.open(OUT_NODES_POSITIONS, 'w') do |file|
   stations_unique.each_with_index do |(name, station), index|
     progress_bar(index + 1, TOTAL_UNIQUE_STATIONS, "Writing Nodes Positions")
-    file.puts("#{name} #{station[:latitude]} #{station[:longitude]}")
+    file.puts("#{name} #{station[:x]} #{station[:y]}")
   end
 end
 

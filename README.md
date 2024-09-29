@@ -23,6 +23,31 @@ Data come from the following sources:
 
 All these sources were released under ODbL or compatible licences.
 
+## Scripts
+
+Run the script to generate the files nodes.txt and positions.txt
+
+You can filter the stations by country, and use normalize flag to normalize the data
+
+Normalizing the data will generate the points closer to the origin (0, 0)
+
+Getting the French stations:
+
+```bash
+ruby stations_for_cpp_on_rails.rb "FR"
+```
+
+Getting the French and spanish stations:
+```bash
+ruby stations_for_cpp_on_rails.rb "FR" "ES"
+```
+
+Normalized data for Germany and France example:
+```bash
+ruby stations_for_cpp_on_rails.rb "DE" "FR" --normalize
+```
+
+
 ## Tests
 
 If you're going to modify the file, don't forget to run the automated tests to ensure consistency of the information provided. This script is used in the build triggered by merge requests.
@@ -30,7 +55,6 @@ If you're going to modify the file, don't forget to run the automated tests to e
 ```bash
 make install
 make test
-make gen
 ```
 
 ## The Data
