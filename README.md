@@ -30,6 +30,7 @@ If you're going to modify the file, don't forget to run the automated tests to e
 ```bash
 make install
 make test
+make gen
 ```
 
 ## The Data
