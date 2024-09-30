@@ -23,7 +23,7 @@ end.parse!
 
 puts "Starting data scraping!"
 
-SCALING_FACTOR = 6  # Adjust this value as needed, big factors separate more the nodes
+SCALING_FACTOR = 5  # Adjust this value as needed, big factors separate more the nodes
 OUT_NODES_POSITIONS = "positions.txt"
 OUT_NODES = "nodes.txt"
 STATIONS = CSV.read("stations.csv", **Constants::CSV_PARAMETERS)
@@ -77,6 +77,7 @@ STATIONS.sort_by { |row| row["country"] }.each_with_index do |row, index|
   progress_bar(index + 1, TOTAL_STATIONS, "Processing Stations")
   country = row["country"].upcase # Normalize to uppercase for comparison
   next if filter_countries && !filter_countries.include?(country) # Skip if not in filter
+  next if !row["is_city"] || !row["is_main_station"] || !row["is_airport"]
   # Only add station to the hash if it's not already present (ensure uniqueness)
   node_name = format_node_name(row["name"])  # Format the node name
   unless stations_unique.key?(node_name)
