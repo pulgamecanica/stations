@@ -23,7 +23,7 @@ end.parse!
 
 puts "Starting data scraping!"
 
-SCALING_FACTOR = 5  # Adjust this value as needed, big factors separate more the nodes
+SCALING_FACTOR = 2  # Adjust this value as needed, big factors separate more the nodes
 OUT_NODES_POSITIONS = "positions.txt"
 OUT_NODES = "nodes.txt"
 STATIONS = CSV.read("stations.csv", **Constants::CSV_PARAMETERS)
@@ -108,7 +108,7 @@ puts
 # Normalize positions if the option is selected
 if options[:normalize]
   # Filter positions to exclude (0, 0) nodes
-  valid_positions = stations_unique.values.reject { |station| station[:x] == 0 || station[:y] == 0 }
+  valid_positions = stations_unique.values.reject { |station| station[:x] == 0 && station[:y] == 0 }
 
   # Get minimum x and y from valid positions
   min_x = valid_positions.map { |station| station[:x] }.min
